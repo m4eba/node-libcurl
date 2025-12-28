@@ -45,6 +45,7 @@
     "brute-force-leak-test:run:debug:gdb": "gdb --args node --inspect --expose_gc -r ts-node/register ./tools/brute-force-leak-test.ts",
     "brute-force-leak-test:server": "http-server ./tools/brute-force-server-static-folder -p 8080 -s",
     "build:dist": "tsc",
+    "build:impersonate": "export npm_config_curl_config_bin=$(pwd)/curl-impersonate/install/bin/curl-impersonate-config && npm install --build-from-source --legacy-peer-deps",
     "clean": "pnpm clean:build && pnpm clean:dist",
     "clean:build": "rimraf build",
     "clean:dist": "rimraf dist tsconfig.tsbuildinfo",
