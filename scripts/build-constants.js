@@ -6,6 +6,9 @@ const { execSync } = require('child_process')
 const { optionKindMap, optionKindValueMap } = require('./data/options')
 
 const {
+  convertCurlConstantToCamelCase,
+} = require('./utils/convertCurlConstantToCamelCase')
+const {
   createConstantsFile,
   getDescriptionCommentForOption,
 } = require('./utils/createConstantsFile')
@@ -35,6 +38,120 @@ const run = async () => {
     constantPrefix: 'CURLOPT_',
     blacklist: curlOptionsBlacklist,
   })
+
+  // Manually add curl-impersonate options
+  const impersonateOptions = [
+    {
+      name: 'IMPERSONATE',
+      description:
+        'curl-impersonate: The master option for setting an impersonate target',
+    },
+    {
+      name: 'SSL_SIG_HASH_ALGS',
+      description: 'curl-impersonate: A list of TLS signature hash algorithms',
+    },
+    {
+      name: 'SSL_CERT_COMPRESSION',
+      description:
+        'curl-impersonate: Comma-separated list of certificate compression algorithms',
+    },
+    {
+      name: 'HTTP2_PSEUDO_HEADERS_ORDER',
+      description:
+        'curl-impersonate: Set the order of the HTTP/2 pseudo headers',
+    },
+    {
+      name: 'HTTP2_SETTINGS',
+      description: 'curl-impersonate: HTTP2 settings frame keys and values',
+    },
+    {
+      name: 'HTTP2_STREAMS',
+      description:
+        'curl-impersonate: Set the initial streams settings for http2',
+    },
+    {
+      name: 'TLS_EXTENSION_ORDER',
+      description: 'curl-impersonate: set tls extension order',
+    },
+    {
+      name: 'TLS_DELEGATED_CREDENTIALS',
+      description: 'curl-impersonate: firefox delegated credentials',
+    },
+    {
+      name: 'SSL_ENABLE_ALPS',
+      description: 'curl-impersonate: Whether to enable ALPS in TLS or not',
+    },
+    {
+      name: 'SSL_ENABLE_TICKET',
+      description: 'Enable/disable TLS session ticket extension',
+    },
+    {
+      name: 'SSL_PERMUTE_EXTENSIONS',
+      description:
+        'curl-impersonate: Whether to enable Boringssl permute extensions',
+    },
+    {
+      name: 'HTTP2_WINDOW_UPDATE',
+      description: 'curl-impersonate: HTTP2 initial window update',
+    },
+    {
+      name: 'TLS_GREASE',
+      description: 'curl-impersonate: enable tls grease',
+    },
+    {
+      name: 'STREAM_EXCLUSIVE',
+      description: 'curl-impersonate: Set stream exclusiveness',
+    },
+    {
+      name: 'TLS_KEY_USAGE_NO_CHECK',
+      description: 'curl-impersonate: enable tls key usage check',
+    },
+    {
+      name: 'TLS_SIGNED_CERT_TIMESTAMPS',
+      description: 'curl-impersonate: enable tls signed cert stamps',
+    },
+    {
+      name: 'TLS_STATUS_REQUEST',
+      description: 'curl-impersonate: enable tls status request',
+    },
+    {
+      name: 'TLS_RECORD_SIZE_LIMIT',
+      description: 'curl-impersonate: firefox record size limit',
+    },
+    {
+      name: 'TLS_KEY_SHARES_LIMIT',
+      description: 'curl-impersonate: firefox key_shares_limit',
+    },
+    {
+      name: 'TLS_USE_NEW_ALPS_CODEPOINT',
+      description: 'curl-impersonate: Use the new ALPS code point',
+    },
+    {
+      name: 'HTTP2_NO_PRIORITY',
+      description:
+        'curl-impersonate: Do not set the priority bit in http2 header frame',
+    },
+    {
+      name: 'PROXY_CREDENTIAL_NO_REUSE',
+      description:
+        'curl-impersonate: Do not reuse TLS sessions or connections from different proxy credentials',
+    },
+    {
+      name: 'HTTPBASEHEADER',
+      description:
+        'curl-impersonate: A list of headers used by the impersonated browser',
+    },
+  ]
+
+  allowedCurlOptions.push(
+    ...impersonateOptions.map((option) => ({
+      constantOriginal: `CURLOPT_${option.name}`,
+      constantName: option.name,
+      constantNameCamelCase: convertCurlConstantToCamelCase(option.name),
+      description: option.description,
+    })),
+  )
+
   await createConstantsFile({
     constants: allowedCurlOptions,
     variableName: 'CurlOption',

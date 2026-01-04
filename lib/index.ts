@@ -96,6 +96,9 @@ export {
   type StringListOptions,
 } from './generated/CurlOption'
 export { MultiOption, MultiOptionName } from './generated/MultiOption'
+export { Impersonate } from './generated/ImpersonatePresets'
+export { impersonate } from './impersonate'
+export { decodeData } from './decodeData'
 
 export {
   CurlWsFrame,

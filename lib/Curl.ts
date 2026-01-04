@@ -253,8 +253,6 @@ class Curl extends EventEmitter {
       Curl.option.HEADERFUNCTION,
       this.defaultHeaderFunction.bind(this),
     )
-
-    handle.setOpt(Curl.option.USERAGENT, Curl.defaultUserAgent)
   }
 
   /**
