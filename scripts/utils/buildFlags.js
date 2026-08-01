@@ -11,6 +11,19 @@ try {
   isGitRepo = false
 }
 
+const curlImpersonateInstallDir = path.join(
+  __dirname,
+  '..',
+  '..',
+  'curl-impersonate',
+  'install',
+)
+const curlImpersonateConfigBin = path.join(
+  curlImpersonateInstallDir,
+  'bin',
+  'curl-impersonate-config',
+)
+
 module.exports = {
   debugBuild: !!process.env.BUILD_DEBUG,
   isElectron: process.env.npm_config_runtime === 'electron',
@@ -18,4 +31,11 @@ module.exports = {
   isNwjs: process.env.npm_config_runtime === 'node-webkit',
   mustBuild: !!(isGitRepo || process.env.BUILD_DEBUG || process.env.BUILD_ONLY),
   skipCleanup: process.env.NODE_LIBCURL_POSTINSTALL_SKIP_CLEANUP === 'true',
+  curlImpersonateInstallDir,
+  curlImpersonateConfigBin,
+  isCurlImpersonateBuilt:
+    fs.existsSync(curlImpersonateConfigBin) &&
+    fs.existsSync(
+      path.join(curlImpersonateInstallDir, 'lib', 'libcurl-impersonate.a'),
+    ),
 }

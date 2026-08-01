@@ -347,14 +347,27 @@ if [[ $LIBCURL_RELEASE == "LATEST" ]]; then
   LIBCURL_RELEASE=$LATEST_LIBCURL_RELEASE
 fi
 LIBCURL_DEST_FOLDER=$PREFIX_DIR/deps/libcurl
-echo "Building libcurl v$LIBCURL_RELEASE - Latest is v$LATEST_LIBCURL_RELEASE"
-./scripts/ci/build-libcurl.sh $LIBCURL_RELEASE $LIBCURL_DEST_FOLDER || (echo "libcurl failed build log:" && cat_slower $LIBCURL_DEST_FOLDER/source/$LIBCURL_RELEASE/config.log && exit 1)
-echo "libcurl successful build log:"
-cat_slower $LIBCURL_DEST_FOLDER/source/$LIBCURL_RELEASE/config.log
 
-export LIBCURL_BUILD_FOLDER=$LIBCURL_DEST_FOLDER/build/$LIBCURL_RELEASE
+if [ "${LIB_CURL_IMPERSONATE:-false}" == "true" ]; then
+  echo "Building curl-impersonate instead of standard libcurl"
+  # Used as the version identifier for the build folder, keeping it separate
+  # from the plain libcurl builds.
+  LIBCURL_RELEASE="curl-impersonate"
+
+  ./scripts/ci/build-curl-impersonate.sh $LIBCURL_RELEASE $LIBCURL_DEST_FOLDER || exit 1
+
+  export LIBCURL_BUILD_FOLDER=$LIBCURL_DEST_FOLDER/build/curl-impersonate
+else
+  echo "Building libcurl v$LIBCURL_RELEASE - Latest is v$LATEST_LIBCURL_RELEASE"
+  ./scripts/ci/build-libcurl.sh $LIBCURL_RELEASE $LIBCURL_DEST_FOLDER || (echo "libcurl failed build log:" && cat_slower $LIBCURL_DEST_FOLDER/source/$LIBCURL_RELEASE/config.log && exit 1)
+  echo "libcurl successful build log:"
+  cat_slower $LIBCURL_DEST_FOLDER/source/$LIBCURL_RELEASE/config.log
+
+  export LIBCURL_BUILD_FOLDER=$LIBCURL_DEST_FOLDER/build/$LIBCURL_RELEASE
+fi
+
 ls -al $LIBCURL_BUILD_FOLDER/lib
-export PATH=$LIBCURL_DEST_FOLDER/build/$LIBCURL_RELEASE/bin:$PATH
+export PATH=$LIBCURL_BUILD_FOLDER/bin:$PATH
 export LIBCURL_RELEASE=$LIBCURL_RELEASE
 
 curl --version
@@ -430,7 +443,7 @@ fi
 NODE_LIBCURL_CPP_STD=${NODE_LIBCURL_CPP_STD:-"c++20"}
 
 # Build Addon
-export npm_config_curl_config_bin="$LIBCURL_DEST_FOLDER/build/$LIBCURL_RELEASE/bin/curl-config"
+export npm_config_curl_config_bin="$LIBCURL_BUILD_FOLDER/bin/curl-config"
 export npm_config_curl_static_build="true"
 export npm_config_node_libcurl_cpp_std="$NODE_LIBCURL_CPP_STD"
 export npm_config_build_from_source="true"

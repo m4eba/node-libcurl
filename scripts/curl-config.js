@@ -18,12 +18,39 @@ if (!argv[2]) {
   process.exit(1)
 }
 
+// Determine which curl-config to use
 const arg = argv[2].trim()
+let curlConfigCmd = 'curl-config'
 
-exec(`curl-config ${arg}`, function (error, stdout, stderr) {
+if (process.platform !== 'win32') {
+  // On Unix, always use curl-impersonate-config
+  const path = require('path')
+  const fs = require('fs')
+  const moduleRoot = path.resolve(__dirname, '..')
+  const impersonateConfig = path.join(
+    moduleRoot,
+    'curl-impersonate',
+    'install',
+    'bin',
+    'curl-impersonate-config',
+  )
+
+  if (fs.existsSync(impersonateConfig)) {
+    curlConfigCmd = impersonateConfig
+  } else {
+    // binding.gyp calls this script, so preinstall has already run by now -
+    // a missing config binary means the build did not produce one.
+    console.error('[node-libcurl] ERROR: curl-impersonate-config not found!')
+    console.error('[node-libcurl] Expected at:', impersonateConfig)
+    console.error('[node-libcurl] Run: npm run build:impersonate:deps')
+    process.exit(1)
+  }
+}
+
+exec(`"${curlConfigCmd}" ${arg}`, function (error, stdout, stderr) {
   if (error != null) {
     console.error(
-      'Could not run curl-config, please make sure libcurl dev package is installed.',
+      `Could not run ${curlConfigCmd}, please make sure curl-impersonate is built.`,
     )
     console.error('Output: ' + stderr)
     process.exit(1)

@@ -13,6 +13,16 @@ echo "Building curl-impersonate in $CURL_IMPERSONATE_DIR"
 # Configure with local prefix
 # We use a subdirectory 'install' inside curl-impersonate to keep it contained
 INSTALL_DIR="$CURL_IMPERSONATE_DIR/install"
+
+# Check if already built
+if [ -f "$INSTALL_DIR/bin/curl-impersonate-config" ] && [ -f "$INSTALL_DIR/lib/libcurl-impersonate.a" ]; then
+    echo "curl-impersonate already built at $INSTALL_DIR"
+    if [ "${FORCE_REBUILD:-}" != "true" ]; then
+        echo "Skipping rebuild. Set FORCE_REBUILD=true to force."
+        exit 0
+    fi
+fi
+
 mkdir -p "$INSTALL_DIR"
 
 # Only configure if Makefile doesn't exist to save time on re-runs
