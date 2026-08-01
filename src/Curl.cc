@@ -616,6 +616,11 @@ const std::vector<CurlConstant> curlOptionString = {
 #if NODE_LIBCURL_VER_GE(7, 33, 0)
     {"XOAUTH2_BEARER", CURLOPT_XOAUTH2_BEARER},
 #endif
+
+    // curl-impersonate options
+    {"IMPERSONATE", CURLOPT_IMPERSONATE},
+    {"SSL_SIG_HASH_ALGS", CURLOPT_SSL_SIG_HASH_ALGS},
+    {"SSL_CERT_COMPRESSION", CURLOPT_SSL_CERT_COMPRESSION},
 };
 
 const std::vector<CurlConstant> curlMultiOptionFunction = {
