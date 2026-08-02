@@ -88,7 +88,21 @@ fi
 echo "configure ${CONFIGURE_ARGS[*]}"
 ../configure "${CONFIGURE_ARGS[@]}"
 
+# The addon is a shared object, so every static archive linked into it has to
+# be position independent. curl-impersonate passes --with-pic to nghttp2,
+# nghttp3 and ngtcp2 and sets POSITION_INDEPENDENT_CODE for BoringSSL, but
+# c-ares gets neither, and linking it on aarch64 fails with:
+#   relocation R_AARCH64_ADR_PREL_PG_HI21 against symbol ... can not be used
+#   when making a shared object; recompile with -fPIC
+# x86_64 happens to tolerate those relocations, aarch64 does not. The Makefile
+# forwards CFLAGS to its cmake builds and the autotools sub-configures inherit
+# it from the environment. Appended so the macOS arch flags set by build.sh
+# survive.
+export CFLAGS="${CFLAGS:-} -fPIC"
+export CXXFLAGS="${CXXFLAGS:-} -fPIC"
+
 echo "Running make build..."
+echo "CFLAGS=$CFLAGS"
 # Downloads and builds the dependencies (BoringSSL, brotli, nghttp2, ...) too
 "$MAKE" build
 
