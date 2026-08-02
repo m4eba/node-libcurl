@@ -44,12 +44,24 @@ mkdir -p build
 cd build
 
 echo "Configuring curl-impersonate..."
-# Static only, matching build-libcurl.sh - the addon links libcurl into the
-# .node file, so a shared build would leave a runtime dependency behind.
+# The addon links libcurl into the .node file, so build a static library.
+# There is no --disable-shared here: curl-impersonate's configure does not
+# define it and warns about an unrecognized option.
 CONFIGURE_ARGS=( "--prefix=$BUILD_FOLDER" )
 CONFIGURE_ARGS+=( "--enable-static" )
-CONFIGURE_ARGS+=( "--disable-shared" )
 
+# zstd is mandatory for curl-impersonate and zlib is looked up the same way,
+# and neither is guaranteed to be installed system wide on the CI images.
+# build.sh has already built both, so point configure at those instead of
+# relying on whatever the runner happens to ship.
+if [[ -n "${ZLIB_BUILD_FOLDER:-}" ]]; then
+  CONFIGURE_ARGS+=( "--with-zlib=$ZLIB_BUILD_FOLDER" )
+fi
+if [[ -n "${ZSTD_BUILD_FOLDER:-}" ]]; then
+  CONFIGURE_ARGS+=( "--with-zstd=$ZSTD_BUILD_FOLDER" )
+fi
+
+echo "configure ${CONFIGURE_ARGS[*]}"
 ../configure "${CONFIGURE_ARGS[@]}"
 
 echo "Running make build..."
