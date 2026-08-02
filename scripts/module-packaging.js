@@ -35,7 +35,7 @@ const octo = new Octokit({
   auth: process.env['NODE_LIBCURL_GITHUB_TOKEN'],
 })
 
-const [owner, repo] = 'JCMais/node-libcurl'.split('/')
+const [owner, repo] = resolveRepository()
 const commands = {
   publish: publish,
   unpublish: unpublish,
@@ -45,6 +45,38 @@ commands[args[0].replace('--', '')](args[1]).catch((error) => {
   console.error(error)
   process.exit(1)
 })
+
+/**
+ * Resolves the GitHub repository that prebuilt binaries are published to.
+ *
+ * This is derived from `binary.host` in package.json, because that is where
+ * node-pre-gyp downloads them from on install - publishing anywhere else
+ * would produce releases nobody fetches. Falls back to GITHUB_REPOSITORY so
+ * a fork still works if the host is not a github.com url.
+ *
+ * @returns {[string, string]} owner and repo
+ */
+function resolveRepository() {
+  const host = require('../package.json').binary?.host || ''
+  const match = /^https?:\/\/github\.com\/([^/]+)\/([^/]+)/.exec(host)
+
+  if (match) {
+    return [match[1], match[2]]
+  }
+
+  const fromEnv = process.env['GITHUB_REPOSITORY']
+  if (fromEnv && fromEnv.includes('/')) {
+    const [owner, repo] = fromEnv.split('/')
+    return [owner, repo]
+  }
+
+  log.error(
+    '',
+    'could not determine the target repository from binary.host ("%s") or GITHUB_REPOSITORY',
+    host,
+  )
+  process.exit(-1)
+}
 
 /**
  * @param {string} pathToPackage

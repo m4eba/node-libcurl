@@ -83,6 +83,25 @@ jobs:
         uses: mxschmitt/action-tmate@v3
         if: matrix.enable-debugging
 
+      - name: curl-impersonate revision
+        id: impersonate-rev
+        run: echo "sha=$(git rev-parse HEAD:curl-impersonate)" >> "$GITHUB_OUTPUT"
+
+      # See the matching comment in build-and-release.yaml - keyed on the
+      # submodule revision and matrix.os so one curl-impersonate build is
+      # shared across every Node.js version for this os.
+      - name: Cache curl-impersonate build
+        uses: actions/cache@v4
+        with:
+          path: ~/deps
+          key: v1-${{ matrix.os }}-curl-impersonate-${{ steps.impersonate-rev.outputs.sha }}
+
+      - name: Cache node-gyp headers
+        uses: actions/cache@v4
+        with:
+          path: ~/.node-gyp
+          key: v1-${{ matrix.os }}-node-gyp-${{ matrix.node }}
+
       - name: 'Build and Package Binary'
         run: ./scripts/ci/build.sh
 
