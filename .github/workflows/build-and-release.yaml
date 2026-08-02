@@ -20,7 +20,11 @@ on:
         required: true
 
 env:
-  NODE_LIBCURL_GITHUB_TOKEN: ${{ secrets.NODE_LIBCURL_GITHUB_TOKEN }}
+  # Prebuilts are attached to releases on this same repo and the job already
+  # has contents: write, so the automatic GITHUB_TOKEN is enough and never
+  # expires. A PAT is only needed if the upload target ever moves to another
+  # repo; set NODE_LIBCURL_GITHUB_TOKEN in that case and it wins.
+  NODE_LIBCURL_GITHUB_TOKEN: ${{ secrets.NODE_LIBCURL_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
   LIB_CURL_IMPERSONATE: 'true'
 
 concurrency:
