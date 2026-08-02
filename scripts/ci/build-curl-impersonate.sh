@@ -63,6 +63,21 @@ if [[ "$(uname)" == "Linux" ]]; then
   sed -i 's/-lc++/-lstdc++/g' Makefile.in
 fi
 
+# Drop c-ares and fall back to curl's threaded resolver. curl-impersonate always
+# builds with --enable-ares, but c-ares fails to resolve when the system has
+# several DNS servers configured, which is why upstream node-libcurl stopped
+# shipping it: https://github.com/JCMais/node-libcurl/issues/280
+# It breaks the CI runners the same way, and it would ship the same DNS bug to
+# anyone using the prebuilt binaries. c-ares is DNS only, so impersonation is
+# unaffected.
+echo "Disabling c-ares in favour of the threaded resolver"
+sed -i.bak 's/ --enable-ares=[^"]*//' Makefile.in && rm -f Makefile.in.bak
+
+if grep -q 'enable-ares' Makefile.in; then
+  echo "Error: failed to remove --enable-ares from Makefile.in" >&2
+  exit 1
+fi
+
 # curl-impersonate expects an out-of-tree build dir: mkdir build && cd build && ../configure
 mkdir -p build
 cd build
