@@ -39,6 +39,16 @@ fi
 
 cd $SOURCE_FOLDER
 
+# Makefile.in hardcodes "-pthread -lc++", which is right on macOS but not on
+# Linux or Alpine, where the toolchain is gcc and the C++ runtime is libstdc++.
+# Without this curl's own configure fails with "C compiler cannot create
+# executables", because it cannot link against a libc++ that is not installed.
+# Safe to edit in place - this is the copy, not the submodule.
+if [[ "$(uname)" == "Linux" ]]; then
+  echo "Linux detected, linking against libstdc++ instead of libc++"
+  sed -i 's/-lc++/-lstdc++/g' Makefile.in
+fi
+
 # curl-impersonate expects an out-of-tree build dir: mkdir build && cd build && ../configure
 mkdir -p build
 cd build
