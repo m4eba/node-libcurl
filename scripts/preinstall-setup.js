@@ -28,6 +28,17 @@ async function main() {
   // Unix: build curl-impersonate
   console.log('[node-libcurl] Checking curl-impersonate status...')
 
+  // CI builds curl-impersonate once up front and points the addon at it
+  // through this variable. Building a second copy in the module folder would
+  // just repeat ~20 minutes of BoringSSL and curl compilation for nothing.
+  if (process.env.npm_config_curl_config_bin) {
+    console.log(
+      '[node-libcurl] curl_config_bin provided, using the existing build:',
+      process.env.npm_config_curl_config_bin,
+    )
+    return
+  }
+
   if (isBuilt()) {
     console.log('[node-libcurl] curl-impersonate already built, skipping.')
     return

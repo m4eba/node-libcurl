@@ -105,4 +105,25 @@ fi
 # curl-impersonate installs under its own name.
 ln -sf "$BUILD_FOLDER/bin/curl-impersonate-config" "$BUILD_FOLDER/bin/curl-config"
 
+# curl-impersonate installs its libraries and curl-impersonate-config, but not
+# curl's public headers, so compiling the addon against this prefix fails with
+# "curl/curl.h: No such file or directory". Copy them out of the curl tree that
+# was just built. cwd is the build folder, and the Makefile unpacks curl into a
+# directory named after its own CURL_VERSION.
+CURL_DIR=$(sed -nE 's/^CURL_VERSION[[:space:]]*:=[[:space:]]*(.+)$/\1/p' ../Makefile.in)
+
+if [[ -z "$CURL_DIR" || ! -d "$CURL_DIR/include/curl" ]]; then
+  echo "Error: curl headers not found at $CURL_DIR/include/curl" >&2
+  exit 1
+fi
+
+echo "Installing curl headers from $CURL_DIR into $BUILD_FOLDER/include"
+mkdir -p "$BUILD_FOLDER/include"
+cp -R "$CURL_DIR/include/curl" "$BUILD_FOLDER/include/"
+
+if [ ! -f "$BUILD_FOLDER/include/curl/curl.h" ]; then
+  echo "Error: curl/curl.h missing from $BUILD_FOLDER/include after copy" >&2
+  exit 1
+fi
+
 echo "Build complete. Output in $BUILD_FOLDER"

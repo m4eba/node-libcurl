@@ -35,7 +35,11 @@ if (process.platform !== 'win32') {
     'curl-impersonate-config',
   )
 
-  if (fs.existsSync(impersonateConfig)) {
+  // An externally built curl-impersonate takes precedence - CI builds one up
+  // front and points at it with this variable instead of building in-module.
+  if (process.env.npm_config_curl_config_bin) {
+    curlConfigCmd = process.env.npm_config_curl_config_bin
+  } else if (fs.existsSync(impersonateConfig)) {
     curlConfigCmd = impersonateConfig
   } else {
     // binding.gyp calls this script, so preinstall has already run by now -
