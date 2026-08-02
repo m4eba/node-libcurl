@@ -7,6 +7,20 @@ DEST_FOLDER=$2
 BUILD_FOLDER=$DEST_FOLDER/build/curl-impersonate
 SOURCE_FOLDER=$DEST_FOLDER/source/curl-impersonate
 
+# curl-impersonate's Makefile declares .ONESHELL:, which needs GNU make >= 3.82.
+# macOS ships GNU make 3.81, where each recipe line runs in its own shell, so
+# the `cd` those rules rely on is lost and the brotli build ends up running
+# cmake against the wrong directory. Homebrew's make package provides gmake.
+MAKE=make
+if [[ "$(uname)" == "Darwin" ]]; then
+  MAKE=gmake
+fi
+
+if ! command -v "$MAKE" &> /dev/null; then
+  echo "Error: $MAKE not found, needed to build curl-impersonate" >&2
+  exit 1
+fi
+
 echo "Building curl-impersonate to $DEST_FOLDER"
 
 # Check if already built
@@ -76,10 +90,10 @@ echo "configure ${CONFIGURE_ARGS[*]}"
 
 echo "Running make build..."
 # Downloads and builds the dependencies (BoringSSL, brotli, nghttp2, ...) too
-make build
+"$MAKE" build
 
 echo "Running make install..."
-make install
+"$MAKE" install
 
 # Check if we have what we need
 if [ ! -f "$BUILD_FOLDER/bin/curl-impersonate-config" ]; then

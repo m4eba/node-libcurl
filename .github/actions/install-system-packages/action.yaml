@@ -17,7 +17,9 @@ runs:
       if: runner.os == 'macOS'
       shell: bash
       run: |
-        brew install coreutils wget automake libtool cmake gnu-sed m4 groff
+        # make provides gmake - curl-impersonate's Makefile needs GNU make
+        # >= 3.82 for .ONESHELL:, and macOS ships 3.81
+        brew install coreutils wget automake libtool cmake gnu-sed m4 groff make
 
     - name: Install Needed packages on Linux
       if: runner.os == 'Linux' && steps.detect-alpine.outputs.result == 'false'
