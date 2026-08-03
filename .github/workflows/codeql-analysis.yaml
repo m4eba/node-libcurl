@@ -13,6 +13,12 @@ on:
   schedule:
     - cron: '0 6 * * 5'
 
+env:
+  # This fork only ever ships curl-impersonate builds, and src/Curl.cc
+  # references CURLOPT_IMPERSONATE and friends unconditionally, so building
+  # against stock libcurl fails to compile. Build what we actually publish.
+  LIB_CURL_IMPERSONATE: 'true'
+
 jobs:
   config:
     uses: ./.github/workflows/reusable-config.yaml

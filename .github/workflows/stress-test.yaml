@@ -20,6 +20,12 @@ on:
       - develop
   pull_request:
 
+env:
+  # This fork only ever ships curl-impersonate builds, and src/Curl.cc
+  # references CURLOPT_IMPERSONATE and friends unconditionally, so building
+  # against stock libcurl fails to compile. Build what we actually publish.
+  LIB_CURL_IMPERSONATE: 'true'
+
 concurrency:
   group: stress-test-${{ github.head_ref || github.ref_name }}
   cancel-in-progress: true

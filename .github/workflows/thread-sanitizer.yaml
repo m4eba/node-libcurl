@@ -15,6 +15,12 @@ on:
       - '.github/workflows/thread-sanitizer.yaml'
   workflow_dispatch:
 
+env:
+  # This fork only ever ships curl-impersonate builds, and src/Curl.cc
+  # references CURLOPT_IMPERSONATE and friends unconditionally, so building
+  # against stock libcurl fails to compile. Build what we actually publish.
+  LIB_CURL_IMPERSONATE: 'true'
+
 jobs:
   thread-sanitizer-test:
     runs-on: ubuntu-24.04
