@@ -1,36 +1,41 @@
-# node-libcurl<!-- omit in toc -->
-
-<p align="center">
-  <a href="https://www.buymeacoffee.com/jonathancardoso" target="_blank">
-    <img src="https://cdn.buymeacoffee.com/buttons/v2/default-black.png" alt="Buy Me A Coffee" height="52px" width="190px" />
-  </a>
-  <br />
-  <a href="https://www.patreon.com/bePatron?u=19985213" data-patreon-widget-type="become-patron-button" title="Become a Patreon">
-    <img src="https://c5.patreon.com/external/logo/become_a_patron_button@2x.png" width="190px" alt="Patreon Logo">
-  </a>
-  <br />
-  <a href="https://discord.io/jonathancardoso" title="Join our Discord Server">
-    <img src="https://i.imgur.com/DlKeNmn.png" alt="Discord Logo" width="190px" />
-  </a>
-</p>
+# @m4eba/node-libcurl-impersonate<!-- omit in toc -->
 
 [![NPM version][npm-image]][npm-url]
 [![license][license-image]][license-url]
 
-[![AppVeyor CI Status][appveyor-image]][appveyor-url]
+[npm-image]:https://img.shields.io/npm/v/@m4eba/node-libcurl-impersonate.svg?style=flat-square
+[npm-url]:https://www.npmjs.org/package/@m4eba/node-libcurl-impersonate
+[license-image]:https://img.shields.io/npm/l/@m4eba/node-libcurl-impersonate?style=flat-square
+[license-url]:https://raw.githubusercontent.com/m4eba/node-libcurl/develop/LICENSE
 
-[npm-image]:https://img.shields.io/npm/v/node-libcurl.svg?style=flat-square
-[npm-url]:https://www.npmjs.org/package/node-libcurl
-[appveyor-image]:https://ci.appveyor.com/api/projects/status/u7ox641jyb6hxrkt/branch/master?svg=true
-[appveyor-url]:https://ci.appveyor.com/project/JCMais/node-libcurl
-[license-image]:https://img.shields.io/npm/l/node-libcurl?style=flat-square
-[license-url]:https://raw.githubusercontent.com/JCMais/node-libcurl/develop/LICENSE
+> Node.js bindings for [curl-impersonate](https://github.com/lexiforest/curl-impersonate) — libcurl with browser TLS/JA3 and HTTP/2 fingerprint impersonation.
 
-> The [fastest](#benchmarks) feature-rich URL transfer library for Node.js.
+A fork of [node-libcurl](https://github.com/JCMais/node-libcurl) that links against
+`libcurl-impersonate` instead of a stock libcurl. Everything node-libcurl does still
+works — the `Curl`, `Easy`, `Multi` and `curly` APIs are unchanged — with the addition
+that requests can be made to look like a real browser at the TLS and HTTP/2 layers.
 
-[libcurl](https://github.com/bagder/curl) bindings for Node.js. libcurl official description:
-> libcurl is a free and easy-to-use client-side URL transfer library, supporting DICT, FILE, FTP, FTPS, Gopher, HTTP, HTTPS, IMAP, IMAPS, LDAP, LDAPS, POP3, POP3S, RTMP, RTSP, SCP, SFTP, SMTP, SMTPS, Telnet and TFTP. libcurl supports SSL certificates, HTTP POST, HTTP PUT, FTP uploading, HTTP form based upload, proxies, cookies, user+password authentication (Basic, Digest, NTLM, Negotiate, Kerberos), file transfer resume, http proxy tunneling and more!
+Why this exists: it is currently the only native Node binding that does **impersonated
+WebSockets**. `node-libcurl-ja3` has no WebSocket support, and the CLI wrappers cannot
+stream frames.
 
+```js
+const { Curl, Impersonate, impersonate } = require('@m4eba/node-libcurl-impersonate')
+
+const curl = new Curl()
+curl.setOpt('URL', 'https://example.com')
+impersonate(curl, Impersonate.Chrome142)
+curl.perform()
+```
+
+**Platform support**: Linux (glibc and musl, x64 and arm64) and macOS (x64 and arm64),
+with prebuilt binaries for Node 22, 24, 25 and 26. **Windows is not supported yet** — see
+[Impersonation](#impersonation).
+
+- [Impersonation](#impersonation)
+  - [Choosing a target](#choosing-a-target)
+  - [Impersonated WebSockets](#impersonated-websockets)
+  - [Differences from stock node-libcurl](#differences-from-stock-node-libcurl)
 - [Quick Start](#quick-start)
   - [Install](#install)
   - [Simple Request - Async / Await using curly](#simple-request---async--await-using-curly)
@@ -46,8 +51,7 @@
 - [Common Issues](#common-issues)
 - [Benchmarks](#benchmarks)
 - [Security](#security)
-- [Supported Libcurl Versions](#supported-libcurl-versions)
-- [For Enterprise](#for-enterprise)
+- [Bundled libcurl](#bundled-libcurl)
 - [Detailed Installation](#detailed-installation)
   - [Important Notes on Prebuilt Binaries / Direct Installation](#important-notes-on-prebuilt-binaries--direct-installation)
     - [Missing Packages](#missing-packages)
@@ -61,7 +65,71 @@
     - [Note on outdated node-gyp version](#note-on-outdated-node-gyp-version)
 - [Getting Help](#getting-help)
 - [Contributing](#contributing)
-- [Donations / Patreon](#donations--patreon)
+- [Credits](#credits)
+
+## Impersonation
+
+### Choosing a target
+
+`impersonate()` sets the target on a `Curl` or `Easy` handle. Everything else — the
+cipher list, TLS extension order, HTTP/2 SETTINGS and the browser headers — is applied
+by libcurl-impersonate itself.
+
+```js
+const { Curl, Impersonate, impersonate } = require('@m4eba/node-libcurl-impersonate')
+
+const curl = new Curl()
+curl.setOpt('URL', 'https://tls.peet.ws/api/all')
+impersonate(curl, Impersonate.Chrome142)
+```
+
+`Impersonate` lists every target compiled into the bundled curl-impersonate — Chrome,
+Edge, Firefox, Safari and Tor builds. The individual options (`IMPERSONATE`,
+`SSL_SIG_HASH_ALGS`, `SSL_CERT_COMPRESSION`, `HTTP2_SETTINGS`, `TLS_GREASE`,
+`SSL_PERMUTE_EXTENSIONS`, …) are also available through `setOpt` if you want to build a
+fingerprint by hand.
+
+> **Always set a target.** Without one you get curl's TLS fingerprint combined with
+> Chrome's HTTP/2 settings, because curl-impersonate patches those defaults into libcurl.
+> That mismatched combination is easier to flag than plain curl.
+
+### Impersonated WebSockets
+
+WebSockets go through libcurl's `CONNECT_ONLY` mode and are impersonated on the
+handshake, same as any other request:
+
+```js
+const { Easy, CurlWs, Impersonate, impersonate } = require('@m4eba/node-libcurl-impersonate')
+
+const easy = new Easy()
+easy.setOpt('URL', 'wss://echo.websocket.org')
+easy.setOpt('CONNECT_ONLY', 2)
+impersonate(easy, Impersonate.Chrome142)
+easy.perform()
+
+easy.wsSend(Buffer.from('hello'), CurlWs.Text)
+
+const buffer = Buffer.alloc(4096)
+const result = easy.wsRecv(buffer)
+console.log(buffer.subarray(0, result.bytesReceived).toString())
+
+easy.wsSend(Buffer.alloc(0), CurlWs.Close)
+easy.close()
+```
+
+The ClientHello matches the browser here too, with ALPN correctly narrowed to
+`http/1.1` — browsers do not offer h2 for WebSocket connections.
+
+### Differences from stock node-libcurl
+
+- **c-ares is not used.** curl-impersonate enables it by default, but it fails to resolve
+  when the host has several DNS servers configured
+  ([JCMais/node-libcurl#280](https://github.com/JCMais/node-libcurl/issues/280)), so this
+  fork builds with curl's threaded resolver instead. `CURLOPT_DNS_SERVERS` and the other
+  c-ares specific options are therefore unavailable.
+- **Windows is not supported yet.** The prebuilt binaries cover Linux and macOS only.
+- The bundled curl version is reported at runtime by `Curl.getVersion()`, and pinned by
+  the `curl-impersonate` submodule rather than by this package's version number.
 
 ## Quick Start
 
@@ -71,21 +139,21 @@
 ### Install
 
 ```shell
-npm i node-libcurl --save
+npm i @m4eba/node-libcurl-impersonate --save
 ```
 or
 ```shell
-pnpm i node-libcurl --save
+pnpm i @m4eba/node-libcurl-impersonate --save
 ```
 or
 ```shell
-yarn add node-libcurl
+yarn add @m4eba/node-libcurl-impersonate
 ```
 ### Simple Request - Async / Await using curly
 > this API is experimental and is subject to changes without a major version bump
 
 ```javascript
-const { curly } = require('node-libcurl');
+const { curly } = require('@m4eba/node-libcurl-impersonate');
 
 const { statusCode, data, headers } = await curly.get('https://www.google.com')
 ```
@@ -93,7 +161,7 @@ const { statusCode, data, headers } = await curly.get('https://www.google.com')
 Any option can be passed using their `FULLNAME` or a `lowerPascalCase` format:
 ```javascript
 const querystring = require('querystring');
-const { curly } = require('node-libcurl');
+const { curly } = require('@m4eba/node-libcurl-impersonate');
 
 const { statusCode, data, headers } = await curly.post('https://httpbin.com/post', {
   postFields: querystring.stringify({
@@ -105,7 +173,7 @@ const { statusCode, data, headers } = await curly.post('https://httpbin.com/post
 
 JSON POST example:
 ```javascript
-const { curly } = require('node-libcurl')
+const { curly } = require('@m4eba/node-libcurl-impersonate')
 const { data } = await curly.post('https://httpbin.com/post', {
   postFields: JSON.stringify({ field: 'value' }),
   httpHeader: [
@@ -119,7 +187,7 @@ console.log(data)
 
 ### Simple Request - Using Curl class
 ```javascript
-const { Curl } = require('node-libcurl');
+const { Curl } = require('@m4eba/node-libcurl-impersonate');
 
 const curl = new Curl();
 
@@ -151,7 +219,7 @@ curl.setOpt(Curl.option.HTTPHEADER,
 ### Form Submission (Content-Type: application/x-www-form-urlencoded)
 ```javascript
 const querystring = require('querystring');
-const { Curl } = require('node-libcurl');
+const { Curl } = require('@m4eba/node-libcurl-impersonate');
 
 const curl = new Curl();
 const close = curl.close.bind(curl);
@@ -169,7 +237,7 @@ curl.on('error', close);
 ### MultiPart Upload / HttpPost libcurl Option (Content-Type: multipart/form-data)
 
 ```javascript
-const { Curl } = require('node-libcurl');
+const { Curl } = require('@m4eba/node-libcurl-impersonate');
 
 const curl = new Curl();
 const close = curl.close.bind(curl);
@@ -238,19 +306,19 @@ See [./benchmark](./benchmark)
 
 See [SECURITY.md](./SECURITY.md)
 
-## Supported Libcurl Versions
+## Bundled libcurl
 
-The addon is only tested against libcurl version `7.81.0` and the latest one available.
+The libcurl version is not chosen by you: it is pinned by the `curl-impersonate`
+submodule and compiled into the prebuilt binaries. Check what you actually have with:
 
-The code itself is only made to compile with versions greater than or equal to `7.81.0`, any libcurl version lower than that is **not** supported.
+```js
+const { Curl } = require('@m4eba/node-libcurl-impersonate')
+console.log(Curl.getVersion())
+// libcurl/8.17.0-IMPERSONATE BoringSSL zlib/... brotli/... nghttp2/... ngtcp2/... nghttp3/...
+```
 
-The 7.81.0 version was released on Jan 5 2022, and it is the version shipped with Ubuntu 22.04. There has been more than 5541 bug fixes on libcurl since then.
-
-## For Enterprise
-
-`node-libcurl` is available as part of the [Tidelift Subscription](https://tidelift.com/subscription/pkg/npm-node-libcurl?utm_source=npm-node-libcurl&utm_medium=referral&utm_campaign=enterprise&utm_term=repo).
-
-The maintainers of node-libcurl and thousands of other packages are working with Tidelift to deliver commercial support and maintenance for the open source dependencies you use to build your applications. Save time, reduce risk, and improve code health, while paying the maintainers of the exact dependencies you use. [Learn more.](https://tidelift.com/subscription/pkg/npm-node-libcurl?utm_source=npm-node-libcurl&utm_medium=referral&utm_campaign=enterprise&utm_term=repo)
+Note the TLS backend is **BoringSSL**, not OpenSSL — that is what makes the browser
+fingerprints reproducible, and it means OpenSSL specific behaviour may differ.
 
 ## Detailed Installation
 
@@ -264,7 +332,7 @@ And on the following platforms:
 * macOS 64 bits (Intel) & ARM64 (M1+)
 * Windows 64 bits
 
-Installing with `yarn add node-libcurl` or `npm install node-libcurl` should download a prebuilt binary and no compilation will be needed. However if you are trying to install on `nw.js` or `electron` additional steps will be required, check their corresponding section below.
+Installing with `yarn add @m4eba/node-libcurl-impersonate` or `npm install @m4eba/node-libcurl-impersonate` should download a prebuilt binary and no compilation will be needed. However if you are trying to install on `nw.js` or `electron` additional steps will be required, check their corresponding section below.
 
 The prebuilt binary is statically built with the following library versions, features and protocols (library versions may change between Node.js versions):
 ```
@@ -280,11 +348,11 @@ If there is no prebuilt binary available that matches your system, or if the ins
 If you don't want to use the prebuilt binary even if it works on your system, you can pass a flag when installing:
 > With `npm`
 ```sh
-npm install node-libcurl --build-from-source
+npm install @m4eba/node-libcurl-impersonate --build-from-source
 ```
 > With `yarn`
 ```sh
-npm_config_build_from_source=true yarn add node-libcurl
+npm_config_build_from_source=true yarn add @m4eba/node-libcurl-impersonate
 ```
 
 ### Important Notes on Prebuilt Binaries / Direct Installation
@@ -301,7 +369,7 @@ If you want to build a statically linked version of the addon yourself, you need
 
 > If using `npm`:
 ```sh
-npm install node-libcurl --build-from-source --curl_static_build=true
+npm install @m4eba/node-libcurl-impersonate --build-from-source --curl_static_build=true
 ```
 > If using `yarn` or `pnpm`:
 ```sh
@@ -339,11 +407,11 @@ For building from source on NW.js you first need to make sure you have nw-gyp in
 Then:
 > yarn
 ```
-npm_config_runtime=node-webkit npm_config_target=0.38.2 yarn add node-libcurl
+npm_config_runtime=node-webkit npm_config_target=0.38.2 yarn add @m4eba/node-libcurl-impersonate
 ```
 > npm
 ```bash
-npm install node-libcurl --runtime=node-webkit --target=0.38.2 --save
+npm install @m4eba/node-libcurl-impersonate --runtime=node-webkit --target=0.38.2 --save
 ```
 
 where `--target` is the current version of NW.js you are using
@@ -352,12 +420,12 @@ where `--target` is the current version of NW.js you are using
 
 > yarn
 ```bash
-npm_config_runtime=electron npm_config_target=X.Y.Z npm_config_disturl=https://www.electronjs.org/headers yarn add node-libcurl
+npm_config_runtime=electron npm_config_target=X.Y.Z npm_config_disturl=https://www.electronjs.org/headers yarn add @m4eba/node-libcurl-impersonate
 ```
 
 > npm
 ```bash
-npm install node-libcurl --runtime=electron --target=X.Y.Z --disturl=https://www.electronjs.org/headers --save
+npm install @m4eba/node-libcurl-impersonate --runtime=electron --target=X.Y.Z --disturl=https://www.electronjs.org/headers --save
 ```
 
 Where `--target` is the version of electron you are using, in our case, we are just using the version returned by the locally installed `electron` binary.
@@ -415,7 +483,7 @@ If that is the case, it's because newer versions of the Command Line Tools does 
 
 The `/usr/include` is now available on `$(xcrun --show-sdk-path)/usr/include`. To correctly build libcurl you then need to pass that path to the `npm_config_curl_include_dirs` environment variable:
 ```
-npm_config_curl_include_dirs="$(xcrun --show-sdk-path)/usr/include" yarn add node-libcurl
+npm_config_curl_include_dirs="$(xcrun --show-sdk-path)/usr/include" yarn add @m4eba/node-libcurl-impersonate
 ```
 
 #### Homebrew
@@ -461,13 +529,13 @@ Then build from source. Depending on your macOS Xcode/CLT version you may need t
 If you prefer to explicitly use the Homebrew-installed `curl` headers instead of the SDK include path, you can use:
 
 ```zsh
-npm_config_curl_include_dirs="$(brew --prefix curl)/include" npm_config_curl_libraries="-L$(brew --prefix curl)/lib -lcurl" npm install node-libcurl --build-from-source
+npm_config_curl_include_dirs="$(brew --prefix curl)/include" npm_config_curl_libraries="-L$(brew --prefix curl)/lib -lcurl" npm install @m4eba/node-libcurl-impersonate --build-from-source
 ```
 
 Or if you want to use the SDK's include path:
 ```zsh
 # build & install
-npm_config_curl_include_dirs="$(xcrun --show-sdk-path)/usr/include" npm install node-libcurl --build-from-source
+npm_config_curl_include_dirs="$(xcrun --show-sdk-path)/usr/include" npm install @m4eba/node-libcurl-impersonate --build-from-source
 ```
 
 This should allow your machine to build the addon using the Homebrew `curl` installation.
@@ -537,7 +605,7 @@ and then use it in the install command by setting the `npm_config_node_gyp` envi
 ```powershell
 $globalNodeGypPath = Join-Path (npm prefix -g) "node_modules\node-gyp\bin\node-gyp.js"
 $env:npm_config_node_gyp=$globalNodeGypPath
-pnpm install node-libcurl
+pnpm install @m4eba/node-libcurl-impersonate
 ```
 
 ## Getting Help
@@ -550,12 +618,17 @@ If your question is directly related to the addon or their usage, you can get he
 
 Read [CONTRIBUTING.md](./CONTRIBUTING.md)
 
-## Donations / Patreon
+## Credits
 
-Some people have been asking if there are any means to support my work, I've created a patreon page for that: https://www.patreon.com/jonathancardoso
+This package is a thin layer over other people's work:
 
-If you want to donate via PayPal, use the same e-mail that is available on my GitHub profile: https://github.com/JCMais
+- [node-libcurl](https://github.com/JCMais/node-libcurl) by Jonathan Cardoso Machado —
+  the bindings this is forked from, and the source of essentially all of the API
+  documented above. If this package is useful to you, consider supporting him:
+  [Patreon](https://www.patreon.com/jonathancardoso).
+- [curl-impersonate](https://github.com/lexiforest/curl-impersonate) by lexiforest, and
+  before it [lwthiker's original](https://github.com/lwthiker/curl-impersonate) — the
+  patches that make curl look like a browser.
+- [curl](https://github.com/curl/curl) itself.
 
-And thanks for reading till here! 😄
-
-_Originally this addon was based on the work from [jiangmiao/node-curl](https://github.com/jiangmiao/node-curl), things have changed and most if not all code has been rewritten._
+_node-libcurl was originally based on [jiangmiao/node-curl](https://github.com/jiangmiao/node-curl); most if not all of that code has since been rewritten._

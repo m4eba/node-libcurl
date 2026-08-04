@@ -20,7 +20,10 @@
     "url": "git://github.com/m4eba/node-libcurl.git"
   },
   "license": "MIT",
-  "author": "Jonathan Cardoso <me@jonathancardoso.com>",
+  "author": "m4eba",
+  "contributors": [
+    "Jonathan Cardoso <me@jonathancardoso.com> (original node-libcurl author)"
+  ],
   "type": "commonjs",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
