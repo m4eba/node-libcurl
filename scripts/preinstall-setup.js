@@ -18,11 +18,25 @@ function hasSubmodule() {
 }
 
 async function main() {
-  // Windows uses vcpkg (keep existing behavior for now)
+  // The vcpkg path inherited from node-libcurl builds a stock libcurl, which
+  // links and runs but has none of the impersonation options. That would hand
+  // Windows users a working install that silently does not impersonate, so
+  // refuse instead of pretending to support the platform.
   if (process.platform === 'win32') {
-    console.log('[node-libcurl] Windows detected, running vcpkg setup...')
-    require('./vcpkg-setup')
-    return
+    console.error(
+      '[node-libcurl] Windows is not supported by @m4eba/node-libcurl-impersonate.',
+    )
+    console.error(
+      '[node-libcurl] There are no prebuilt binaries for win32, and building here',
+    )
+    console.error(
+      '[node-libcurl] would produce a stock libcurl with no impersonation support.',
+    )
+    console.error(
+      '[node-libcurl] Use node-libcurl if you need Windows without impersonation:',
+    )
+    console.error('[node-libcurl]   https://github.com/JCMais/node-libcurl')
+    process.exit(1)
   }
 
   // Unix: build curl-impersonate
