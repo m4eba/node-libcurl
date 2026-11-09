@@ -76,7 +76,7 @@ jobs:
           npm_config_curl_static_build: 'true'
           npm_config_build_from_source: 'true'
         run: |
-          export npm_config_curl_config_bin=~/deps/libcurl/build/$LIBCURL_RELEASE/bin/curl-config
+          export npm_config_curl_config_bin=~/deps/libcurl/build/curl-impersonate/bin/curl-config
           pnpm install --frozen-lockfile --force --fetch-timeout 300000
 
       - name: 'Find TSan library path'

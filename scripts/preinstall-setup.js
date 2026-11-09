@@ -6,49 +6,32 @@ const path = require('path')
 const moduleRoot = path.resolve(__dirname, '..')
 const impersonateDir = path.join(moduleRoot, 'curl-impersonate')
 const installDir = path.join(impersonateDir, 'install')
-const configBin = path.join(installDir, 'bin', 'curl-impersonate-config')
-const libFile = path.join(installDir, 'lib', 'libcurl-impersonate.a')
+const isWindows = process.platform === 'win32'
+const builtFiles = isWindows
+  ? ['lib/libcurl-impersonate.dll', 'lib/libcurl-impersonate_imp.lib']
+  : ['bin/curl-impersonate-config', 'lib/libcurl-impersonate.a']
 
 function isBuilt() {
-  return fs.existsSync(configBin) && fs.existsSync(libFile)
+  return builtFiles.every((file) => fs.existsSync(path.join(installDir, file)))
 }
 
 function hasSubmodule() {
-  return fs.existsSync(path.join(impersonateDir, 'configure'))
+  return fs.existsSync(path.join(impersonateDir, 'CMakeLists.txt'))
 }
 
 async function main() {
-  // The vcpkg path inherited from node-libcurl builds a stock libcurl, which
-  // links and runs but has none of the impersonation options. That would hand
-  // Windows users a working install that silently does not impersonate, so
-  // refuse instead of pretending to support the platform.
-  if (process.platform === 'win32') {
-    console.error(
-      '[node-libcurl] Windows is not supported by @m4eba/node-libcurl-impersonate.',
-    )
-    console.error(
-      '[node-libcurl] There are no prebuilt binaries for win32, and building here',
-    )
-    console.error(
-      '[node-libcurl] would produce a stock libcurl with no impersonation support.',
-    )
-    console.error(
-      '[node-libcurl] Use node-libcurl if you need Windows without impersonation:',
-    )
-    console.error('[node-libcurl]   https://github.com/JCMais/node-libcurl')
-    process.exit(1)
-  }
-
-  // Unix: build curl-impersonate
   console.log('[node-libcurl] Checking curl-impersonate status...')
 
   // CI builds curl-impersonate once up front and points the addon at it
-  // through this variable. Building a second copy in the module folder would
+  // through these variables. Building a second copy in the module folder would
   // just repeat ~20 minutes of BoringSSL and curl compilation for nothing.
-  if (process.env.npm_config_curl_config_bin) {
+  const existingBuild =
+    process.env.npm_config_curl_config_bin ||
+    process.env.CURL_IMPERSONATE_PREFIX
+  if (existingBuild) {
     console.log(
-      '[node-libcurl] curl_config_bin provided, using the existing build:',
-      process.env.npm_config_curl_config_bin,
+      '[node-libcurl] Using the existing curl-impersonate build:',
+      existingBuild,
     )
     return
   }
@@ -62,8 +45,9 @@ async function main() {
   // path for an npm install: there is nothing to build here and node-pre-gyp
   // downloads a prebuilt binary in the install step that follows. Failing here
   // would make the package impossible to install at all. If no prebuilt matches
-  // and node-pre-gyp falls back to building, scripts/curl-config.js reports the
-  // missing curl-impersonate with instructions.
+  // and node-pre-gyp falls back to building, scripts/curl-config.js (or
+  // scripts/curl-impersonate-win-info.js on Windows) reports the missing
+  // curl-impersonate with instructions.
   if (!hasSubmodule()) {
     console.log(
       '[node-libcurl] No curl-impersonate sources here, expecting a prebuilt binary.',
@@ -80,7 +64,10 @@ async function main() {
 
   try {
     // We need to make sure we are running the build script with the correct cwd
-    execSync('bash scripts/curl-impersonate-build.sh', {
+    const buildCommand = isWindows
+      ? `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\\ci\\windows\\build-curl-impersonate.ps1 -Prefix "${installDir}"`
+      : 'bash scripts/curl-impersonate-build.sh'
+    execSync(buildCommand, {
       cwd: moduleRoot,
       stdio: 'inherit',
       env: { ...process.env },

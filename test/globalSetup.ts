@@ -112,15 +112,27 @@ export default async function setup({ provide }: TestProject) {
     })
   })
 
+  // Echoes the negotiated extensions first, so tests can assert on them
+  const wsDeflateServer = createWebSocketServer({ perMessageDeflate: true })
+
+  wsDeflateServer.wss!.on('connection', (ws) => {
+    ws.send(ws.extensions)
+    ws.on('message', (data, isBinary) => {
+      ws.send(data, { binary: isBinary })
+    })
+  })
+
   // Start servers
   const httpPort = await httpServer.listen()
   const httpsPort = await httpsServer.listen()
   const wsPort = await wsServer.listen()
+  const wsDeflatePort = await wsDeflateServer.listen()
 
   // Provide server URLs to tests
   provide('httpServerUrl', `http://localhost:${httpPort}`)
   provide('httpsServerUrl', `https://localhost:${httpsPort}`)
   provide('wsServerUrl', `ws://localhost:${wsPort}`)
+  provide('wsDeflateServerUrl', `ws://localhost:${wsDeflatePort}`)
 
   // Return teardown function
   return async () => {
@@ -133,6 +145,7 @@ export default async function setup({ provide }: TestProject) {
       httpServer.close(),
       httpsServer.close(),
       wsServer.close(),
+      wsDeflateServer.close(),
     ])
   }
 }
@@ -142,5 +155,6 @@ declare module 'vitest' {
     httpServerUrl: string
     httpsServerUrl: string
     wsServerUrl: string
+    wsDeflateServerUrl: string
   }
 }

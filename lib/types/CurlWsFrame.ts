@@ -38,6 +38,8 @@ export interface CurlWsFrame {
    * If this is not a complete fragment, the bytesleft field informs about
    * how many additional bytes are expected to arrive before this fragment
    * is complete. If zero, the frame is complete.
+   * It is `-1` if the decoded size is not known, which can happen with
+   * {@link CurlWsOptions.PermessageDeflate | `CurlWsOptions.PermessageDeflate`}.
    */
   bytesleft: number
 

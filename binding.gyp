@@ -61,8 +61,7 @@
         ['curl_libraries!=""', {
           'libraries': ['<@(curl_libraries)']
         }],
-        # Windows is only build statically
-        # In the future we can add support for other build types 
+        # Windows links against the curl-impersonate DLL, which ships next to the addon
         ['OS=="win"', {
           'msvs_settings': {
             'VCCLCompilerTool': {
@@ -78,13 +77,6 @@
                 '/MP', #compile across multiple CPUs
               ],
               "ExceptionHandling": 1, 
-            },
-            'VCLinkerTool': {
-              'AdditionalOptions': [
-                '/FORCE:MULTIPLE',
-                # Symbol already defined. Impossible to avoid given Node.js exposes OpenSSL symbols from their own build.
-                '/IGNORE:4006'
-              ],
             },
           },
           'configurations': {
@@ -116,19 +108,13 @@
               }
             }
           },
-          'dependencies': [
-            '<!@(node "<(module_root_dir)/scripts/openssl-disable.js")'
-          ],
-          'defines': [
-            'CURL_STATICLIB'
-          ],
           'conditions': [
             ['curl_include_dirs==""', {
               'include_dirs': [
-                '<!@(node "<(module_root_dir)/scripts/vcpkg-get-info.js" --include-dir)'
+                '<!(node "<(module_root_dir)/scripts/curl-impersonate-win-info.js" --include-dir)'
               ],
               'libraries': [
-                '<!@(node "<(module_root_dir)/scripts/vcpkg-get-info.js" --libs)'
+                '<!(node "<(module_root_dir)/scripts/curl-impersonate-win-info.js" --libs)'
               ]
             }],
             ['curl_include_dirs!=""', {
@@ -313,17 +299,27 @@
           'destination': '<(module_path)'
         }
       ],
-      'conditions': [['OS=="mac" and curl_static_build!="true"', {
-        'postbuilds': [
-          {
-            'postbuild_name': '@rpath for libcurl',
-            'action': [
-              '<(module_root_dir)/scripts/gyp-macos-postbuild.sh',
-              '<(module_path)/<(module_name).node'
-            ],
-          },
-        ]
-      }]]
+      'conditions': [
+        ['OS=="win"', {
+          'copies': [
+            {
+              'files': ['<!(node "<(module_root_dir)/scripts/curl-impersonate-win-info.js" --dll)'],
+              'destination': '<(module_path)'
+            }
+          ]
+        }],
+        ['OS=="mac" and curl_static_build!="true"', {
+          'postbuilds': [
+            {
+              'postbuild_name': '@rpath for libcurl',
+              'action': [
+                '<(module_root_dir)/scripts/gyp-macos-postbuild.sh',
+                '<(module_path)/<(module_name).node'
+              ],
+            },
+          ]
+        }]
+      ]
     }
   ]
 }

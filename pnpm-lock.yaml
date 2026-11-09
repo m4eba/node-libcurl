@@ -11,9 +11,6 @@ importers:
       '@mapbox/node-pre-gyp':
         specifier: 2.0.3
         version: 2.0.3(encoding@0.1.13)
-      env-paths:
-        specifier: 2.2.0
-        version: 2.2.0
       node-addon-api:
         specifier: 8.5.0
         version: 8.5.0

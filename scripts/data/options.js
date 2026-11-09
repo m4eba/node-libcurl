@@ -4,6 +4,7 @@ const optionKindMap = {
   stringList: [
     'CONNECT_TO',
     'HTTP200ALIASES',
+    'HTTPBASEHEADER',
     'HTTPHEADER',
     'MAIL_RCPT',
     'PROXYHEADER',

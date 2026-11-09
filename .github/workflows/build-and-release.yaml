@@ -60,6 +60,7 @@ jobs:
           - ubuntu-22.04
           - ubuntu-24.04-arm
           - alpine
+          - windows-2022
         node:
           - 26
           - 25
@@ -132,7 +133,13 @@ jobs:
           key: v1-${{ matrix.os }}-node-gyp-${{ matrix.node }}
 
       - name: 'Build and Package Binary'
+        if: runner.os != 'Windows'
         run: ./scripts/ci/build.sh
+
+      - name: 'Build and Package Binary (Windows)'
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./scripts/ci/windows/build.ps1
 
       - name: Create attestations
         uses: actions/attest-build-provenance@v3

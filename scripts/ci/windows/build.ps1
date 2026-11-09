@@ -9,26 +9,13 @@ param(
 
 # Set error action preference
 $ErrorActionPreference = "Stop"
-$PSNativeCommandErrorActionPreference = "Stop"
+$PSNativeCommandUseErrorActionPreference = $true
 
 # Set up environment variables
 $env:DEBUG = 'node-libcurl'
 $env:NODE_LIBCURL_POSTINSTALL_SKIP_CLEANUP = 'true'
 
-# Get system information
-$Architecture = (Get-WmiObject Win32_Processor).Architecture
-# Convert architecture code to readable format
-switch ($Architecture) {
-    0 { $Architecture = "x86" }
-    1 { $Architecture = "MIPS" }
-    2 { $Architecture = "Alpha" }
-    3 { $Architecture = "PowerPC" }
-    5 { $Architecture = "ARM" }
-    6 { $Architecture = "ia64" }
-    9 { $Architecture = "x64" }
-    12 { $Architecture = "ARM64" }
-    default { $Architecture = "Unknown" }
-}
+$Architecture = $env:PROCESSOR_ARCHITECTURE
 
 Write-Host "=== Node-libcurl Windows Build Script ===" -ForegroundColor Green
 Write-Host "Electron Version: $ElectronVersion" -ForegroundColor Yellow
@@ -36,7 +23,7 @@ Write-Host "Architecture: $Architecture" -ForegroundColor Yellow
 Write-Host "Git Commit: $GitCommit" -ForegroundColor Yellow
 Write-Host "Git Ref Name: $GitRefName" -ForegroundColor Yellow
 
-# Add localhost entries to hosts file (needed for c-ares DNS resolution)
+# Add localhost entries to hosts file
 Write-Host "Adding localhost entries to hosts file..." -ForegroundColor Blue
 try {
     Add-Content -Path "C:\Windows\System32\drivers\etc\hosts" -Value "127.0.0.1       localhost" -Force
@@ -48,8 +35,6 @@ try {
 # Git is used for a couple of steps
 Write-Host "Git Check..." -ForegroundColor Blue
 try {
-    # vcpkg will be set up by the preinstall script
-    # Just verify git is available for vcpkg bootstrap
     $gitVersion = git --version
     Write-Host "Git version: $gitVersion" -ForegroundColor Cyan
 } catch {
@@ -99,8 +84,13 @@ if (-not $env:PUBLISH_BINARY) {
     Write-Host "Binary publish setting overridden via environment variable: $env:PUBLISH_BINARY" -ForegroundColor Cyan
 }
 
-# Note: vcpkg setup will be handled by the preinstall script in package.json
-# No need for git submodules or Python configuration anymore
+# Built once up front and shared by every Node.js version through the CI cache.
+# The preinstall script sees this variable and leaves the build alone.
+if (-not $env:CURL_IMPERSONATE_PREFIX) {
+    $env:CURL_IMPERSONATE_PREFIX = Join-Path $HOME 'deps\build\curl-impersonate'
+}
+Write-Host "Building curl-impersonate into $env:CURL_IMPERSONATE_PREFIX..." -ForegroundColor Blue
+& "$PSScriptRoot\build-curl-impersonate.ps1" -Prefix $env:CURL_IMPERSONATE_PREFIX
 
 # Set up build environment variables
 Write-Host "Setting up build environment..." -ForegroundColor Blue
@@ -199,8 +189,8 @@ Get-ChildItem -Path . -Force | Format-Table Name, Length, LastWriteTime
 
 # Run tests (skip for Electron builds)
 Write-Host "Running tests..." -ForegroundColor Blue
-if ($ElectronVersion) {
-    Write-Host "Skipping tests for Electron build" -ForegroundColor Yellow
+if ($ElectronVersion -or $env:RUN_TESTS -eq 'false') {
+    Write-Host "Skipping tests" -ForegroundColor Yellow
 } else {
     try {
         # Test basic functionality

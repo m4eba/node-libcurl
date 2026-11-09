@@ -4507,6 +4507,7 @@ export type ProgressCallbackOptions = 'PROGRESSFUNCTION' | 'XFERINFOFUNCTION'
 export type StringListOptions =
   | 'CONNECT_TO'
   | 'HTTP200ALIASES'
+  | 'HTTPBASEHEADER'
   | 'HTTPHEADER'
   | 'MAIL_RCPT'
   | 'PROXYHEADER'
@@ -8811,12 +8812,12 @@ export type CurlOptionValueType = {
    *
    * Official libcurl documentation: [undefined](undefined)
    */
-  HTTPBASEHEADER?: string | number | boolean | null
+  HTTPBASEHEADER?: string[] | null
 
   /**
    * curl-impersonate: A list of headers used by the impersonated browser
    *
    * Official libcurl documentation: [undefined](undefined)
    */
-  httpbaseHeader?: string | number | boolean | null
+  httpbaseHeader?: string[] | null
 }

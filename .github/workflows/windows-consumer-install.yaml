@@ -14,9 +14,7 @@ on:
       - 'pnpm-lock.yaml'
       - 'scripts/**'
       - 'src/**'
-      - 'vcpkg.template.json'
-      - 'vcpkg-configuration.json'
-      - 'overlays/**'
+      - 'curl-impersonate'
 
 concurrency:
   group: windows-consumer-install-${{ github.head_ref || github.ref_name }}
@@ -31,12 +29,10 @@ jobs:
       - name: Enable Windows long paths (registry + git)
         run: |
           # The whole point of this job is exercising a deeply-nested
-          # consumer path. Windows' default MAX_PATH=260 ceiling makes
-          # vcpkg blow up the moment it tries to CreateProcessW its
-          # downloaded pwsh.exe (~270+ char path). Flip the registry
-          # opt-in and the git default to long-path mode — both are
-          # standard for Windows dev/CI environments dealing with
-          # deep node_modules.
+          # consumer path, which runs into Windows' default MAX_PATH=260
+          # ceiling. Flip the registry opt-in and the git default to
+          # long-path mode — both are standard for Windows dev/CI
+          # environments dealing with deep node_modules.
           New-ItemProperty `
             -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem' `
             -Name 'LongPathsEnabled' `
@@ -50,10 +46,32 @@ jobs:
         with:
           submodules: true
 
+      - name: Install System Packages
+        uses: ./.github/actions/install-system-packages
+
       - name: Setup Node and PNPM
         uses: ./.github/actions/setup-node-pnpm
         with:
           node-version: '24'
+
+      - name: curl-impersonate revision
+        id: impersonate-rev
+        shell: bash
+        run: echo "sha=$(git rev-parse HEAD:curl-impersonate)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache curl-impersonate build
+        uses: actions/cache@v4
+        with:
+          path: ~/deps
+          key: v1-windows-latest-curl-impersonate-${{ steps.impersonate-rev.outputs.sha }}
+
+      # The published tarball has no curl-impersonate sources, so a consumer
+      # building from source has to point at an existing build.
+      - name: Build curl-impersonate
+        run: |
+          $prefix = Join-Path $HOME 'deps\build\curl-impersonate'
+          ./scripts/ci/windows/build-curl-impersonate.ps1 -Prefix $prefix
+          "CURL_IMPERSONATE_PREFIX=$prefix" | Add-Content -Path $env:GITHUB_ENV
 
       - name: Build package tarball
         run: |
@@ -72,38 +90,31 @@ jobs:
           # native command unless we tell it to. Without this, a failed
           # `pnpm add` (gyp couldn't find VS, native build threw, etc.)
           # would slide right past and the curl.exe check below would
-          # happily find the vcpkg-built curl from preinstall and report
-          # success — exactly what fooled us on the last run.
+          # happily find the separately built curl and report success.
           $ErrorActionPreference = 'Stop'
-          $PSNativeCommandErrorActionPreference = $true
+          $PSNativeCommandUseErrorActionPreference = $true
 
-          $package = Get-ChildItem $env:RUNNER_TEMP -Filter 'node-libcurl-*.tgz' |
+          $package = Get-ChildItem $env:RUNNER_TEMP -Filter 'm4eba-node-libcurl-impersonate-*.tgz' |
             Select-Object -First 1
 
           if (-not $package) {
             throw 'Packed node-libcurl tarball was not found'
           }
 
-          # 'nested-' * 4 puts the consumer at ~110 chars before node_modules,
-          # which mirrors what real-world pnpm monorepos hit (workspace +
-          # a couple of nested package depths). The previous 'nested-' * 12
-          # forced moduleRoot to ~256 chars, leaving no headroom under
-          # MAX_PATH for MSVC's c1xx.exe — that compiler front-end doesn't
-          # carry the long-path app manifest, so the registry opt-in does
-          # nothing for it. With *4 we have ~135 chars of slack inside the
-          # 260-char ceiling for MSBuild's intermediate/log files.
-          $consumerRoot = Join-Path $env:RUNNER_TEMP (
-            'node-libcurl-consumer-' + ('nested-' * 4)
-          )
+          # A short path on purpose. pnpm's store folder for this package takes
+          # 60 characters, and MSBuild writes node-addon-api's intermediate
+          # files beneath it, which leaves little room under its 260-character
+          # limit. MSBuild ignores the registry long-path opt-in.
+          $consumerRoot = Join-Path $env:RUNNER_TEMP 'consumer'
 
           New-Item -ItemType Directory -Force -Path $consumerRoot
           Set-Location $consumerRoot
           # pnpm v10 blocks dependency install scripts by default. The consumer
           # has to opt in for any package that needs its preinstall/install/
-          # postinstall to run — and node-libcurl needs all three to run the
-          # vcpkg setup and build the native addon. Without this approval the
-          # install completes "successfully" but leaves the package non-
-          # functional (no vcpkg-installed curl.exe, no native binding).
+          # postinstall to run — and this package needs them to build the
+          # native addon. Without this approval the install completes
+          # "successfully" but leaves the package non-functional (no native
+          # binding).
           # This is the exact failure mode real pnpm-v10 consumers hit, so we
           # encode the workaround here rather than masking it.
           Set-Content -Path package.json -Value (@'
@@ -111,7 +122,7 @@ jobs:
             "private": true,
             "type": "commonjs",
             "pnpm": {
-              "onlyBuiltDependencies": ["node-libcurl"]
+              "onlyBuiltDependencies": ["@m4eba/node-libcurl-impersonate"]
             }
           }
           '@)
@@ -129,17 +140,16 @@ jobs:
           $env:npm_config_node_gyp = $globalNodeGypPath
           Write-Host "Pointing pnpm at node-gyp: $globalNodeGypPath"
 
-          pnpm add $package.FullName --allow-build=node-libcurl --fetch-timeout 300000
+          pnpm add $package.FullName --allow-build=@m4eba/node-libcurl-impersonate --fetch-timeout 300000
           if ($LASTEXITCODE -ne 0) {
             throw "pnpm add exited with code $LASTEXITCODE"
           }
 
           # The actual addon — this is what consumers `require()` at runtime,
-          # so it's the most important thing to verify exists. Without the
-          # node-gyp override above this never got written, and the previous
-          # "passing" run was just finding the vcpkg byproduct.
-          $consumerPkgRoot = Join-Path $consumerRoot 'node_modules\node-libcurl'
+          # so it's the most important thing to verify exists.
+          $consumerPkgRoot = Join-Path $consumerRoot 'node_modules\@m4eba\node-libcurl-impersonate'
           $addon = Get-ChildItem -Path $consumerPkgRoot -Recurse -Filter node_libcurl.node |
+            Where-Object { $_.DirectoryName -like '*\lib\binding' } |
             Select-Object -First 1
 
           if (-not $addon) {
@@ -147,29 +157,25 @@ jobs:
           }
           Write-Host "Built addon at: $($addon.FullName) ($($addon.Length) bytes)"
 
-          # vcpkg_installed lives outside the consumer's node_modules on
-          # Windows (see scripts/vcpkg-common.js for why). The path is
-          # %LOCALAPPDATA%\node-libcurl-vcpkg\<moduleRootHash>-installed —
-          # `node scripts/vcpkg-get-info.js --include-dir` would print the
-          # final include path, but the simplest check is to scan the
-          # whole cache for any curl.exe in this run.
-          $vcpkgCacheRoot = Join-Path $env:LOCALAPPDATA 'node-libcurl-vcpkg'
-          $curlExe = Get-ChildItem -Path $vcpkgCacheRoot -Recurse -Filter curl.exe |
-            Where-Object { $_.FullName -like '*-installed\*\tools\curl\curl.exe' } |
-            Select-Object -First 1
-
-          if (-not $curlExe) {
-            throw 'vcpkg curl.exe was not found after install'
+          # Windows only finds the DLL when it sits next to the addon.
+          $dll = Join-Path $addon.DirectoryName 'libcurl-impersonate.dll'
+          if (-not (Test-Path $dll)) {
+            throw 'libcurl-impersonate.dll was not copied next to the addon'
           }
 
-          $curlVersion = & $curlExe.FullName --version
+          $curlExe = Join-Path $env:CURL_IMPERSONATE_PREFIX 'bin\curl-impersonate.exe'
+          $curlVersion = & $curlExe --version
           $curlVersion
           $curlVersionText = $curlVersion -join "`n"
+
+          if ($curlVersionText -notmatch 'BoringSSL') {
+            throw 'curl-impersonate was not built with BoringSSL'
+          }
 
           if ($curlVersionText -notmatch 'Features:.*\bIDN\b') {
             throw 'Windows curl build did not retain IDN support'
           }
 
-          if ($curlVersionText -match 'libidn2') {
-            throw 'Windows curl build still links libidn2'
+          if ($curlVersionText -match 'c-ares') {
+            throw 'Windows curl build still uses c-ares'
           }

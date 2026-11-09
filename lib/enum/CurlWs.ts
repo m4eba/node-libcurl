@@ -72,4 +72,12 @@ export enum CurlWsOptions {
    * Tells libcurl to not automatically respond to PING frames with PONG.
    */
   NoAutoPong = 1 << 1,
+  /**
+   * Offers the permessage-deflate extension, which browsers normally offer, and
+   * compresses and decompresses messages if the server accepts it. Added by
+   * curl-impersonate, and not enabled by impersonation on its own.
+   *
+   * While it is in use, {@link CurlWsFrame.bytesleft | `bytesleft`} can be `-1`.
+   */
+  PermessageDeflate = 1 << 2,
 }
