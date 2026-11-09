@@ -17,26 +17,23 @@ runs:
       if: runner.os == 'macOS'
       shell: bash
       run: |
-        # make provides gmake - curl-impersonate's Makefile needs GNU make
-        # >= 3.82 for .ONESHELL:, and macOS ships 3.81.
-        # ninja and go are required to build BoringSSL, per curl-impersonate's
-        # INSTALL.md.
-        brew install coreutils wget automake libtool cmake gnu-sed m4 groff make ninja go pkg-config
+        # ninja builds curl itself in curl-impersonate's CMake build.
+        brew install coreutils wget automake libtool cmake gnu-sed m4 groff make ninja pkg-config
 
     - name: Install Needed packages on Linux
       if: runner.os == 'Linux' && steps.detect-alpine.outputs.result == 'false'
       shell: bash
       run: |
-        sudo apt-get update && sudo apt-get install -y cmake groff libtsan0
+        sudo apt-get update && sudo apt-get install -y cmake ninja-build patch groff libtsan0
 
     - name: Install Needed packages on Alpine
       if: steps.detect-alpine.outputs.result == 'true'
       shell: sh
       run: |
-        # ninja and go build BoringSSL, and bzip2/xz/unzip unpack the
-        # dependency archives - see curl-impersonate's docker/alpine.dockerfile
+        # ninja builds curl itself, patch applies curl-impersonate's dependency
+        # patches, and bzip2/xz/unzip unpack the dependency archives
         apk --no-cache add --virtual .rundeps \
-        ninja go patch bzip2 xz unzip \
+        ninja patch bzip2 xz unzip \
         bash ca-certificates cmake curl docker git \
         gnupg openssh-client openssl parallel pkgconfig \
         coreutils \

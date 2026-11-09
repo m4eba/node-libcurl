@@ -4,4 +4,4 @@
 	url 	 = https://github.com/microsoft/vcpkg.git
 [submodule "curl-impersonate"]
 	path = curl-impersonate
-	url = https://github.com/m4eba/curl-impersonate
+	url = https://github.com/lexiforest/curl-impersonate

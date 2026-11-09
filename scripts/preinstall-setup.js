@@ -14,7 +14,7 @@ function isBuilt() {
 }
 
 function hasSubmodule() {
-  return fs.existsSync(path.join(impersonateDir, 'configure'))
+  return fs.existsSync(path.join(impersonateDir, 'CMakeLists.txt'))
 }
 
 async function main() {

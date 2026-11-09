@@ -38,6 +38,7 @@ const GREASE = new Set([
 
 // TLS extension numbers asserted on below.
 const EXT_EC_POINT_FORMATS = 11
+const EXT_ALPN = 16
 const EXT_COMPRESS_CERTIFICATE = 27
 const EXT_RECORD_SIZE_LIMIT = 28
 const EXT_DELEGATED_CREDENTIALS = 34
@@ -47,11 +48,12 @@ const EXT_ENCRYPTED_CLIENT_HELLO = 65037
 interface ClientHello {
   ciphers: number[]
   extensions: number[]
+  alpn: string[]
 }
 
 /**
  * Minimal ClientHello parser - only walks far enough to read the cipher suite
- * list and the extension types.
+ * list, the extension types and the ALPN protocols.
  */
 function parseClientHello(buf: Buffer): ClientHello {
   let p = 5 // TLS record header
@@ -74,9 +76,20 @@ function parseClientHello(buf: Buffer): ClientHello {
   p += 2
   const extensionsEnd = p + extensionsLength
   const extensions: number[] = []
+  const alpn: string[] = []
   while (p + 4 <= extensionsEnd) {
-    extensions.push(buf.readUInt16BE(p))
-    p += 4 + buf.readUInt16BE(p + 2)
+    const type = buf.readUInt16BE(p)
+    const length = buf.readUInt16BE(p + 2)
+    extensions.push(type)
+
+    if (type === EXT_ALPN) {
+      // The body starts with a 2 byte list length, then length-prefixed names.
+      for (let q = p + 6; q < p + 4 + length; q += 1 + buf[q]) {
+        alpn.push(buf.toString('latin1', q + 1, q + 1 + buf[q]))
+      }
+    }
+
+    p += 4 + length
   }
 
   const withoutGrease = (values: number[]) =>
@@ -85,13 +98,17 @@ function parseClientHello(buf: Buffer): ClientHello {
   return {
     ciphers: withoutGrease(ciphers),
     extensions: withoutGrease(extensions),
+    alpn,
   }
 }
 
 /**
  * Points curl at a local TCP server and returns the ClientHello it sent.
  */
-function captureClientHello(target: Impersonate | null): Promise<ClientHello> {
+function captureClientHello(
+  target: Impersonate | null,
+  scheme: 'https' | 'wss' = 'https',
+): Promise<ClientHello> {
   return new Promise((resolve, reject) => {
     const server = net.createServer((socket) => {
       const chunks: Buffer[] = []
@@ -131,7 +148,8 @@ function captureClientHello(target: Impersonate | null): Promise<ClientHello> {
       }
 
       const curl = new Curl()
-      curl.setOpt('URL', `https://127.0.0.1:${address.port}/`)
+      curl.setOpt('URL', `${scheme}://127.0.0.1:${address.port}/`)
+      if (scheme === 'wss') curl.setOpt('CONNECT_ONLY', 2)
       curl.setOpt('TIMEOUT', 10)
       if (target !== null) impersonate(curl, target)
 
@@ -240,6 +258,18 @@ describe.skipIf(!hasSignatures)('Impersonate', () => {
     expect(new Set(orders).size).toBeGreaterThan(1)
     // Cipher order is not permuted.
     expect(hellos[1].ciphers).toEqual(hellos[0].ciphers)
+  })
+})
+
+describe('Impersonate ALPN', () => {
+  it('should offer h2 for HTTPS connections', async () => {
+    const hello = await captureClientHello(Impersonate.Chrome152)
+    expect(hello.alpn).toContain('h2')
+  })
+
+  it('should only offer http/1.1 for WebSocket connections', async () => {
+    const hello = await captureClientHello(Impersonate.Chrome152, 'wss')
+    expect(hello.alpn).toEqual(['http/1.1'])
   })
 })
 

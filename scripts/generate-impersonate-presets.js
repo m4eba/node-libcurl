@@ -2,16 +2,18 @@ const fs = require('fs')
 const path = require('path')
 
 const run = () => {
-  const impersonateCPath = path.resolve(
+  // The patch adds lib/impersonate.c, so reading it needs no build and does
+  // not depend on the curl version the submodule is on.
+  const curlPatchPath = path.resolve(
     __dirname,
-    '../curl-impersonate/curl-8_17_0/lib/impersonate.c',
+    '../curl-impersonate/patches/curl.patch',
   )
   const outputPath = path.resolve(
     __dirname,
     '../lib/generated/ImpersonatePresets.ts',
   )
 
-  const content = fs.readFileSync(impersonateCPath, 'utf8')
+  const content = fs.readFileSync(curlPatchPath, 'utf8')
   const regex = /\.target\s*=\s*"([^"]+)"/g
   const targets = []
   let match
@@ -57,7 +59,7 @@ const run = () => {
   lines.push(' * @public')
   lines.push(' */')
   lines.push(
-    'export type Impersonate = typeof Impersonate[keyof typeof Impersonate]',
+    'export type Impersonate = (typeof Impersonate)[keyof typeof Impersonate]',
   )
   lines.push('')
   lines.push('// END AUTOMATICALLY GENERATED CODE - DO NOT EDIT')

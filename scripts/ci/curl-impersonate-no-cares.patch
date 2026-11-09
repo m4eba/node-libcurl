@@ -1,0 +1,19 @@
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -241,6 +241,7 @@
+   list(APPEND _cares_platform_args -DHAVE_PIPE2=OFF)
+ endif()
+ ExternalProject_Add(cares
++  EXCLUDE_FROM_ALL TRUE
+   URL "${CARES_URL}"
+   URL_HASH "${CARES_URL_HASH}"
+   SOURCE_DIR "${DEPS_SRC_DIR}/cares"
+@@ -516,7 +517,7 @@
+ 
+ set(_curl_deps zlib zstd brotli boringssl nghttp2 ngtcp2 nghttp3)
+ 
+-if(ANDROID)
++if(TRUE)
+   set(_curl_resolver_flags
+     -DENABLE_ARES=OFF
+     -DENABLE_THREADED_RESOLVER=ON

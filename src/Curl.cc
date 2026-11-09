@@ -335,6 +335,9 @@ const std::vector<CurlConstant> curlOptionInteger = {
 #if NODE_LIBCURL_VER_GE(7, 59, 0)
     {"TIMEVALUE_LARGE", CURLOPT_TIMEVALUE_LARGE},
 #endif
+#if NODE_LIBCURL_VER_GE(7, 86, 0)
+    {"WS_OPTIONS", CURLOPT_WS_OPTIONS},
+#endif
 
     // curl-impersonate options
     {"HTTP2_NO_PRIORITY", CURLOPT_HTTP2_NO_PRIORITY},

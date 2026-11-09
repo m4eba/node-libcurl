@@ -16,6 +16,9 @@ import {
   Easy,
   Multi,
   CurlWs,
+  CurlWsOptions,
+  Impersonate,
+  impersonate,
   SocketState,
   CurlReadFunc,
   CurlPause,
@@ -347,6 +350,64 @@ describe.runIf(isWebSocketSupported)(
           // Start connection
           multi.addHandle(easy)
         })
+      })
+    })
+
+    describe('Impersonated connections', () => {
+      const connect = (url: string, wsOptions?: CurlWsOptions) => {
+        const easy = new Easy()
+        withCommonTestOptions(easy)
+        easy.setOpt('URL', url)
+        easy.setOpt('CONNECT_ONLY', 2)
+        impersonate(easy, Impersonate.Chrome152)
+        if (wsOptions !== undefined) {
+          expect(easy.setOpt('WS_OPTIONS', wsOptions)).toBe(CurlCode.CURLE_OK)
+        }
+        expect(easy.perform()).toBe(CurlCode.CURLE_OK)
+        return easy
+      }
+
+      const receive = async (easy: Easy) => {
+        const buffer = Buffer.alloc(8192)
+
+        while (true) {
+          const result = easy.wsRecv(buffer)
+          if (result.code !== CurlCode.CURLE_AGAIN) {
+            expect(result.code).toBe(CurlCode.CURLE_OK)
+            return buffer.toString('utf8', 0, result.bytesReceived)
+          }
+          await setTimeout(10)
+        }
+      }
+
+      const expectEcho = async (easy: Easy, message: string) => {
+        expect(easy.wsSend(Buffer.from(message), CurlWs.Text).code).toBe(
+          CurlCode.CURLE_OK,
+        )
+        expect(await receive(easy)).toBe(message)
+      }
+
+      it('should echo text frames', async () => {
+        const easy = connect(getWsUrl())
+        await expectEcho(easy, 'Hello WebSocket!')
+        easy.close()
+      })
+
+      it('should not offer permessage-deflate by default', async () => {
+        const easy = connect(inject('wsDeflateServerUrl'))
+        expect(await receive(easy)).toBe('')
+        easy.close()
+      })
+
+      it('should negotiate permessage-deflate when asked to', async () => {
+        const easy = connect(
+          inject('wsDeflateServerUrl'),
+          CurlWsOptions.PermessageDeflate,
+        )
+        expect(await receive(easy)).toContain('permessage-deflate')
+        // ws only compresses messages over its 1024 byte threshold
+        await expectEcho(easy, 'compressed '.repeat(200))
+        easy.close()
       })
     })
 

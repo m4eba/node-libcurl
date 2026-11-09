@@ -24,7 +24,7 @@ const { Curl, Impersonate, impersonate } = require('@m4eba/node-libcurl-imperson
 
 const curl = new Curl()
 curl.setOpt('URL', 'https://example.com')
-impersonate(curl, Impersonate.Chrome142)
+impersonate(curl, Impersonate.Chrome152)
 curl.perform()
 ```
 
@@ -80,7 +80,7 @@ const { Curl, Impersonate, impersonate } = require('@m4eba/node-libcurl-imperson
 
 const curl = new Curl()
 curl.setOpt('URL', 'https://tls.peet.ws/api/all')
-impersonate(curl, Impersonate.Chrome142)
+impersonate(curl, Impersonate.Chrome152)
 ```
 
 `Impersonate` lists every target compiled into the bundled curl-impersonate — Chrome,
@@ -104,7 +104,7 @@ const { Easy, CurlWs, Impersonate, impersonate } = require('@m4eba/node-libcurl-
 const easy = new Easy()
 easy.setOpt('URL', 'wss://echo.websocket.org')
 easy.setOpt('CONNECT_ONLY', 2)
-impersonate(easy, Impersonate.Chrome142)
+impersonate(easy, Impersonate.Chrome152)
 easy.perform()
 
 easy.wsSend(Buffer.from('hello'), CurlWs.Text)
@@ -119,6 +119,16 @@ easy.close()
 
 The ClientHello matches the browser here too, with ALPN correctly narrowed to
 `http/1.1` — browsers do not offer h2 for WebSocket connections.
+
+Browsers normally offer the `permessage-deflate` extension, but impersonation does
+not turn it on, so a connection without it differs from the browser. Enable it with:
+
+```js
+easy.setOpt('WS_OPTIONS', CurlWsOptions.PermessageDeflate)
+```
+
+Messages are compressed and decompressed for you. While it is in use, `bytesleft` in
+the frame metadata can be `-1` when the decoded size is not known.
 
 ### Differences from stock node-libcurl
 
@@ -314,7 +324,7 @@ submodule and compiled into the prebuilt binaries. Check what you actually have 
 ```js
 const { Curl } = require('@m4eba/node-libcurl-impersonate')
 console.log(Curl.getVersion())
-// libcurl/8.17.0-IMPERSONATE BoringSSL zlib/... brotli/... nghttp2/... ngtcp2/... nghttp3/...
+// libcurl/8.23.0-IMPERSONATE BoringSSL zlib/... brotli/... nghttp2/... ngtcp2/... nghttp3/...
 ```
 
 Note the TLS backend is **BoringSSL**, not OpenSSL — that is what makes the browser

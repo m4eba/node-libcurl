@@ -11,10 +11,16 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Fixed
 
 - Registered the 20 curl-impersonate options that were typed but missing from the native option map, such as `TLS_GREASE` and `HTTP2_SETTINGS`. They were `undefined` at runtime.
+- Registered `WS_OPTIONS` in the native option map. Setting it, including `RawMode` and `NoAutoPong`, used to fail with an unknown option error.
 
 ### Added
+- Added `CurlWsOptions.PermessageDeflate`, which offers the `permessage-deflate` WebSocket extension.
+- Added 13 impersonation presets: Chrome 145, 146, 150, 151 and 152 (plus macOS variants of 151 and 152), Firefox 147 and 153 to 155, and Safari 27.0 (desktop and iOS).
 
 ### Changed
+- Updated curl-impersonate to v2.3.2 and curl to 8.23.0, and moved the submodule from `m4eba/curl-impersonate` to `lexiforest/curl-impersonate`.
+- curl-impersonate is now built with CMake, which requires `ninja`.
+- Blob options such as `SSLKEY_BLOB` now reject an empty `Buffer` or string, following curl. Use `null` to clear them.
 
 ## [5.1.2] - 2026-06-08
 
