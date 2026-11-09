@@ -1,37 +1,15 @@
 // Mostly copied from https://github.com/nodegit/nodegit/blob/288ab93/lifecycleScripts/postinstall.js
 const path = require('path')
 const fs = require('fs')
-const os = require('os')
 const exec = require('child_process').exec
 const util = require('util')
 
 // remember that everything in here must be a direct
 // dependency of the package no dev dependencies are allowed.
 const log = require('npmlog')
-const envPaths = require('env-paths')
 const rimraf = require('rimraf')
 
 const buildFlags = require('./utils/buildFlags')
-
-const homeDir = os.homedir()
-
-let { version } = process
-let gypFolder = envPaths('node-gyp', { suffix: '' }).cache
-
-if (process.env.npm_config_runtime === 'node-webkit') {
-  version = process.env.npm_config_target
-  gypFolder = path.resolve(homeDir, '.nw-gyp')
-}
-
-// node-gyp path from here: https://github.com/nodejs/node-gyp/blob/v5.0.3/bin/node-gyp.js#L31
-const gypDir = path.resolve(gypFolder, version.replace('v', ''))
-
-// reverting what we did in our install script
-const opensslFolder = path.resolve(gypDir, 'include', 'node', 'openssl')
-const opensslFolderDisabled = `${opensslFolder}.disabled`
-if (fs.existsSync(opensslFolderDisabled)) {
-  fs.renameSync(opensslFolderDisabled, opensslFolder)
-}
 
 const execAsync = util.promisify(exec)
 

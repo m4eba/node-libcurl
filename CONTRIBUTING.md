@@ -55,11 +55,6 @@ TS/JS code should be formatted using prettier
 
 ### Setup
 
-If on Windows, first you will need to grab the deps:
-```sh
-$ node scripts/update-deps.js
-```
-
 Install the dependencies, this will also build the addon:
 ```sh
 $ pnpm install
@@ -102,7 +97,7 @@ If you want to include a new libcurl option on the addon, those are the basic st
 
 ### Changing libcurl Version Used on Prebuilt Binaries for Windows
 
-We use vcpkg for this. Simply change the version on the file [`vcpkg.template.json`](./vcpkg.template.json)
+Windows uses the same curl as the other platforms, pinned by the `curl-impersonate` submodule.
 
 ### Building Electron
 

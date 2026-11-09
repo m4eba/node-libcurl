@@ -1,5 +1,5 @@
 name: Install System Packages
-description: Installs required system packages on macOS and Linux (incl. Alpine)
+description: Installs required system packages on macOS, Linux (incl. Alpine) and Windows
 
 runs:
   using: composite
@@ -25,6 +25,14 @@ runs:
       shell: bash
       run: |
         sudo apt-get update && sudo apt-get install -y cmake ninja-build patch groff libtsan0
+
+    - name: Install Needed packages on Windows
+      if: runner.os == 'Windows'
+      shell: pwsh
+      run: |
+        # Visual Studio on the runner provides clang-cl, CMake and Ninja.
+        choco install nasm -y
+        Add-Content -Path $env:GITHUB_PATH -Value 'C:\Program Files\NASM'
 
     - name: Install Needed packages on Alpine
       if: steps.detect-alpine.outputs.result == 'true'

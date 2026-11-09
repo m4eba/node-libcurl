@@ -28,9 +28,8 @@ impersonate(curl, Impersonate.Chrome152)
 curl.perform()
 ```
 
-**Platform support**: Linux (glibc and musl, x64 and arm64) and macOS (x64 and arm64),
-with prebuilt binaries for Node 22, 24, 25 and 26. **Windows is not supported yet** — see
-[Impersonation](#impersonation).
+**Platform support**: Linux (glibc and musl, x64 and arm64), macOS (x64 and arm64) and
+Windows (x64), with prebuilt binaries for Node 22, 24, 25 and 26.
 
 - [Impersonation](#impersonation)
   - [Choosing a target](#choosing-a-target)
@@ -137,7 +136,6 @@ the frame metadata can be `-1` when the decoded size is not known.
   ([JCMais/node-libcurl#280](https://github.com/JCMais/node-libcurl/issues/280)), so this
   fork builds with curl's threaded resolver instead. `CURLOPT_DNS_SERVERS` and the other
   c-ares specific options are therefore unavailable.
-- **Windows is not supported yet.** The prebuilt binaries cover Linux and macOS only.
 - The bundled curl version is reported at runtime by `Curl.getVersion()`, and pinned by
   the `curl-impersonate` submodule rather than by this package's version number.
 
@@ -552,27 +550,14 @@ This should allow your machine to build the addon using the Homebrew `curl` inst
 
 ### Building on Windows
 
-If installing using a prebuilt binary you only need to have the [visual c++ 2017 runtime library](https://visualstudio.microsoft.com/downloads/#microsoft-visual-c-redistributable-for-visual-studio-2017).
+Prebuilt binaries need nothing else installed. They ship `libcurl-impersonate.dll` next to the addon, so keep those two files together if you copy them somewhere.
 
-If building from source, you must have:
-- Python 3.x
-- [Visual Studio >= 2019](https://visualstudio.microsoft.com/downloads/) (with Clang/LLVM support enabled, see the next item)
-- [Clang/LLVM support on Visual Studio](https://learn.microsoft.com/en-us/cpp/build/clang-support-msbuild?view=msvc-170)
-- [nasm](https://www.nasm.us/)
+To build from source you need a git clone with submodules, or `CURL_IMPERSONATE_PREFIX` pointing at an existing curl-impersonate build (the npm tarball does not carry the sources). You also need:
+- [Visual Studio 2022 or newer](https://visualstudio.microsoft.com/downloads/) with the "Desktop development with C++" workload and the "C++ Clang tools for Windows" component
+- [Git for Windows](https://git-scm.com/download/win), which also provides `patch`
+- [nasm](https://www.nasm.us/) on your `PATH`, for example with `choco install nasm`
 
-Python 3.x and the Visual Studio compiler can be installed by running:
-```sh
-npm install --global --production windows-build-tools
-```
-
-`nasm` can be obtained from their website, which is linked above, or using chocolatey:
-```
-choco install nasm
-```
-
-Currently there is no support to use other libcurl version than the one provided by the [curl-for-windows](https://github.com/JCMais/curl-for-windows) submodule (help is appreciated on adding this feature).
-
-An important note about building the addon on Windows is that we have to do some "hacks" with the header files included by `node-gyp`/`nw-gyp`. The reason for that is because as we are using a standalone version of OpenSSL, we don't want to use the OpenSSL headers provided by Node.js, which are by default added to `<nw-gyp-or-node-gyp-folder>/include/node/openssl`, so what we do is that before compilation that folder is renamed to `openssl.disabled`. After a successful installation the folder is renamed back to their original name, **however** if any error happens during compilation the folder will stay renamed until the addon is compiled successfully. More info on why that was needed and some context can be found on issue [#164](https://github.com/JCMais/node-libcurl/issues/164).
+`pnpm install` then builds curl-impersonate into `curl-impersonate/install` and links the addon against it.
 
 #### Note on outdated node-gyp version
 

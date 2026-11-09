@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Registered `WS_OPTIONS` in the native option map. Setting it, including `RawMode` and `NoAutoPong`, used to fail with an unknown option error.
 
 ### Added
+- Added Windows x64 support, with prebuilt binaries for Node 22, 24, 25 and 26. The addon links curl-impersonate as a DLL shipped next to it, and it is built with the threaded resolver like the other platforms.
 - Added `CurlWsOptions.PermessageDeflate`, which offers the `permessage-deflate` WebSocket extension.
 - Added 13 impersonation presets: Chrome 145, 146, 150, 151 and 152 (plus macOS variants of 151 and 152), Firefox 147 and 153 to 155, and Safari 27.0 (desktop and iOS).
 
