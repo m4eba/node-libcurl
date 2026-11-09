@@ -108,22 +108,13 @@ describe('Option HTTPAUTH', () => {
   })
 
   it('should authenticate using digest', async () => {
-    // Currently, there is a bug with libcurl > 7.40 when using digest auth
-    // on Windows, the realm is not populated from the Auth header.
-    //  So we need to use the workaround below to make it work.
-    let user = username
-
-    if (process.platform === 'win32' && Curl.VERSION_NUM >= 0x072800) {
-      user = `${realmDigest}/${username}`
-    }
-
     serverInstance.app.get('/', httpAuthConnect(digest), (req, res) => {
       // @ts-ignore
       res.send(req.user)
     })
 
     curl.setOpt('HTTPAUTH', CurlAuth.Digest)
-    curl.setOpt('USERNAME', user)
+    curl.setOpt('USERNAME', username)
     curl.setOpt('PASSWORD', password)
 
     const result = await new Promise<{ status: number; data: string }>(
