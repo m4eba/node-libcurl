@@ -10,7 +10,7 @@ import path from 'node:path'
 
 import { describe, it, expect } from 'vitest'
 
-import { Curl, Impersonate, impersonate } from '../../lib'
+import { Curl, CurlCode, Easy, Impersonate, impersonate } from '../../lib'
 
 /**
  * These tests assert that the TLS ClientHello produced by a given impersonate
@@ -241,4 +241,51 @@ describe.skipIf(!hasSignatures)('Impersonate', () => {
     // Cipher order is not permuted.
     expect(hellos[1].ciphers).toEqual(hellos[0].ciphers)
   })
+})
+
+describe('Impersonate options', () => {
+  const integerOptions = {
+    HTTP2_NO_PRIORITY: 1,
+    HTTP2_WINDOW_UPDATE: 15663105,
+    PROXY_CREDENTIAL_NO_REUSE: 1,
+    SSL_ENABLE_ALPS: 1,
+    SSL_ENABLE_TICKET: 1,
+    SSL_PERMUTE_EXTENSIONS: 1,
+    STREAM_EXCLUSIVE: 1,
+    TLS_GREASE: 1,
+    TLS_KEY_SHARES_LIMIT: 3,
+    TLS_KEY_USAGE_NO_CHECK: 1,
+    TLS_RECORD_SIZE_LIMIT: 4001,
+    TLS_SIGNED_CERT_TIMESTAMPS: 1,
+    TLS_STATUS_REQUEST: 1,
+    TLS_USE_NEW_ALPS_CODEPOINT: 1,
+  } as const
+
+  const stringOptions = {
+    HTTP2_PSEUDO_HEADERS_ORDER: 'masp',
+    HTTP2_SETTINGS: '1:65536;2:0;4:6291456;6:262144',
+    HTTP2_STREAMS: '3:0:201:1',
+    SSL_CERT_COMPRESSION: 'brotli',
+    SSL_SIG_HASH_ALGS: 'ecdsa_secp256r1_sha256',
+    TLS_DELEGATED_CREDENTIALS: 'ecdsa_secp256r1_sha256',
+    TLS_EXTENSION_ORDER: '0-23-65281',
+  } as const
+
+  it.each([
+    ...Object.entries(integerOptions),
+    ...Object.entries(stringOptions),
+    ['HTTPBASEHEADER', ['Accept: */*']],
+  ] as Array<[keyof typeof Curl.option, never]>)(
+    'should accept %s',
+    (name, value) => {
+      expect(Curl.option[name]).toBeDefined()
+
+      const easy = new Easy()
+      try {
+        expect(easy.setOpt(name, value)).toBe(CurlCode.CURLE_OK)
+      } finally {
+        easy.close()
+      }
+    },
+  )
 })

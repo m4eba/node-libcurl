@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
+- Registered the 20 curl-impersonate options that were typed but missing from the native option map, such as `TLS_GREASE` and `HTTP2_SETTINGS`. They were `undefined` at runtime.
+
 ### Added
 
 ### Changed
