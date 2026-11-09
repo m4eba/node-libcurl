@@ -559,6 +559,8 @@ To build from source you need a git clone with submodules, or `CURL_IMPERSONATE_
 
 `pnpm install` then builds curl-impersonate into `curl-impersonate/install` and links the addon against it.
 
+Keep the project near the root of the drive when building from source as a pnpm dependency. MSBuild has a 260-character path limit, and pnpm's nested store uses most of it.
+
 #### Note on outdated node-gyp version
 
 NPM has its own internal version of `node-gyp`, which may not be the most up-to-date version. If you see an output like this:
